@@ -1,1 +1,3 @@
+*.o
 mem_manager
+test.c
