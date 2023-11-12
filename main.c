@@ -1,41 +1,62 @@
 #include "memalloc.h"
 
-extern void *init_heap;
+extern void *init_heap;			//Você precisa ter a variável global que armazena o valor de brk como um extern aqui.
+									//No código de teste estou chamandando de init_heap, mas se utilizarem outro nome,
+									//substituir as ocorrências por ele aqui.
 
-int main(){
-  setup_brk();
 
-  printf("init heap: %p\n", init_heap);
+void double_alloc_after_free(void **pointers_array){
+	pointers_array[1] = memory_alloc(50);
+	pointers_array[2] = memory_alloc(100);
+}
 
-  void *pointer = memory_alloc(100);
+void simple_alloc(void **pointers_array){
+	pointers_array[0] = memory_alloc(100);
+}
 
-  printf("&pointer: %p\n", pointer);
+int main() {
+	setup_brk();
+	printf("============================== ROTINAS DE TESTE ==============================\n");
 
-  printf("state %ld\n", *((unsigned long int *)(pointer - 16)));
+	void *initial_brk = init_heap;
+	void *alloc_pointers[3];
 
-  memory_free(pointer);
+	simple_alloc(alloc_pointers);
+	printf("==>> ALOCANDO UM ESPAÇO DE 100 BYTES:\n");
+	printf("\tLOCAL: %s\n", alloc_pointers[0]-16 == initial_brk ? "CORRETO!" : "INCORRETO!");
+	printf("\tIND. DE USO: %s\n", *((long long*) (alloc_pointers[0]-16)) == 1 ? "CORRETO!" : "INCORRETO!");
+	printf("\tTAMANHO: %s\n", *((long long*) (alloc_pointers[0]-8)) == 100 ? "CORRETO!" : "INCORRETO!");
 
-  printf("state %ld\n", *((unsigned long int *)(pointer - 16)));
+	printf("==>> DESALOCANDO UM ESPAÇO DE 100 BYTES:\n");
+	memory_free(alloc_pointers[0]);
+	printf("\tIND. DE USO: %s\n", *((long long*) (alloc_pointers[0]-16)) == 0 ? "CORRETO!" : "INCORRETO!");
+	printf("\tTAMANHO: %s\n", *((long long*) (alloc_pointers[0]-8)) == 100 ? "CORRETO!" : "INCORRETO!");
 
-  void *pointer_two = memory_alloc(83);
+	double_alloc_after_free(alloc_pointers);
+	printf("==>> ALOCANDO UM ESPAÇO DE 50 BYTES:\n");
+	printf("\tLOCAL: %s\n", alloc_pointers[1]-16 == initial_brk ? "CORRETO!" : "INCORRETO!");
+	printf("\tIND. DE USO: %s\n", *((long long*) (alloc_pointers[1]-16)) == 1 ? "CORRETO!" : "INCORRETO!");
+	printf("\tTAMANHO: %s\n", *((long long*) (alloc_pointers[1]-8)) == 50 ? "CORRETO!" : "INCORRETO!");
+	printf("==>> ALOCANDO UM ESPAÇO DE 100 BYTES:\n");
+	printf("\tLOCAL: %s\n", alloc_pointers[1]+100 == alloc_pointers[2]-16 ? "CORRETO!" : "INCORRETO!");
+	printf("\tIND. DE USO: %s\n", *((long long*) (alloc_pointers[2]-16)) == 1 ? "CORRETO!" : "INCORRETO!");
+	printf("\tTAMANHO: %s\n", *((long long*) (alloc_pointers[2]-8)) == 100 ? "CORRETO!" : "INCORRETO!");
+	printf("==> VERIFICANDO A FRAGMENTAÇÃO DE MEMÓRIA:\n");
+	printf("\tIND. DE USO: %s\n", *((long long*) (alloc_pointers[1]+50)) == 0 ? "CORRETO!" : "INCORRETO!");
+	printf("\tTAMANHO: %s\n", *((long long*) (alloc_pointers[1]+58)) == 34 ? "CORRETO!" : "INCORRETO!");
 
-  printf("&pointer_two: %p\n", pointer_two);
-  printf("state %ld\n", *((unsigned long int *)(pointer_two - 16)));
-  printf("qnt %ld\n", *((unsigned long int *)(pointer_two - 8)));
+	printf("==>> DESALOCANDO TUDO:\n");
+	memory_free(alloc_pointers[1]);
+	memory_free(alloc_pointers[2]);
+	printf("\tIND. DE USO: %s\n", *((long long*) (alloc_pointers[1]-16)) == 0 ? "CORRETO!" : "INCORRETO!");
+	printf("\tTAMANHO: %s\n", *((long long*) (alloc_pointers[1]-8)) == 50 ? "CORRETO!" : "INCORRETO!");
+	printf("\tIND. DE USO: %s\n", *((long long*) (alloc_pointers[2]-16)) == 0 ? "CORRETO!" : "INCORRETO!");
+	printf("\tTAMANHO: %s\n", *((long long*) (alloc_pointers[2]-8)) == 100 ? "CORRETO!" : "INCORRETO!");
 
-  printf("&pointer new: %p\n", pointer_two + 83 + 16);
-  printf("state new %ld\n", *((unsigned long int *)(pointer_two + 83)));
-  printf("qnt new %ld\n", *((unsigned long int *)(pointer_two  + 83 + 8)));
 
-  void *pointer_three = memory_alloc(1);
+	printf("==>> DESALOCANDO A PILHA (ILEGAL):\n");
+	unsigned int alloc_return = memory_free((void*) alloc_pointers);
+	if (!alloc_return) printf("\tO RETORNO DA LIBERAÇÃO FOI NULL!\n");
 
-  printf("&pointer_two: %p\n", pointer_three);
-  printf("state %ld\n", *((unsigned long int *)(pointer_three - 16)));
-  printf("qnt %ld\n", *((unsigned long int *)(pointer_three - 8)));
-
-  printf("init heap: %p\n", init_heap);
-
-  dismiss_brk();
-
-  return 0;
+	return 0;
 }
