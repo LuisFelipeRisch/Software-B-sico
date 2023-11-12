@@ -8,6 +8,6 @@
 void setup_brk();
 void dismiss_brk();
 void *memory_alloc(unsigned long int bytes);
-void memory_free(void *pointer);
+int memory_free(void *pointer);
 
 #endif

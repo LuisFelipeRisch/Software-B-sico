@@ -84,8 +84,10 @@ void *memory_alloc(unsigned long int bytes){
   return pointer;
 }
 
-void memory_free(void *pointer){
+int memory_free(void *pointer){
   unsigned long int *state = (unsigned long int *) (pointer - 16);
 
   *state = FREE;
+
+  return 0;
 }
