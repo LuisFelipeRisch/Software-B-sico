@@ -54,8 +54,6 @@ void try_to_alloc_new_block(void *block, unsigned long int bytes){
 
   if(*block_data_bytes_qnt - bytes <= 16) return;
 
-  printf("Alloc new block!\n");
-
   void *block_data = block + 16;
 
   unsigned long int *new_block_state = (unsigned long int *) (block_data + bytes);
