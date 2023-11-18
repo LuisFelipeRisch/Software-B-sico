@@ -1,11 +1,19 @@
-all:
-	as memalloc.s -o memalloc.o -g
-	gcc -c main.c -g
-	gcc main.o memalloc.o -o program -g
+CC = gcc
+AS = as
+CFLAGS = -g -no-pie
+LFLAGS = -lm
 
+main: main.o memalloc.o
+	$(CC) $(CFLAGS) $(LFLAGS) -o main main.o memalloc.o
 
-clear:
-	rm  *.o
+memalloc.o: memalloc.s
+	$(AS) $(CFLAGS) -c memalloc.s -o memalloc.o
 
-purge: clear
-	rm program
+main.o: main.c memalloc.h
+	$(CC) $(CFLAGS) -c main.c -o main.o
+
+clean:
+	rm -rf ./*.o
+
+purge: clean
+	rm -rf main
