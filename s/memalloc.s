@@ -38,45 +38,49 @@ dismiss_brk:
 	popq	%rbp
 	ret
 
+# Try to find a free block in the current state of the heap
+# Returns null if not find. Otherwise, returns the initial position of the free block
+# void *find_free_block(unsigned long int bytes)
 find_free_block:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	movq	%rdi, -40(%rbp)
-	movq	$0, -32(%rbp)
+	subq $40, %rsp							# making 40 bytes space in the stack
+	movq	%rdi, -40(%rbp)				# (%rbp - 40) = %rdi
+	movq	$0, -32(%rbp)					# (%rbp - 32) = 0	-> free_block
 	movq	init_heap(%rip), %rax
-	movq	%rax, -24(%rbp)
-	jmp	.L4
-.L7:
-	movq	-24(%rbp), %rax
-	movq	%rax, -16(%rbp)
-	movq	-24(%rbp), %rax
-	addq	$8, %rax
-	movq	%rax, -8(%rbp)
-	movq	-16(%rbp), %rax
-	movq	(%rax), %rax
-	testq	%rax, %rax
-	jne	.L5
-	movq	-8(%rbp), %rax
-	movq	(%rax), %rax
-	cmpq	%rax, -40(%rbp)
-	ja	.L5
-	movq	-16(%rbp), %rax
-	movq	$1, (%rax)
-	movq	-24(%rbp), %rax
-	movq	%rax, -32(%rbp)
-.L5:
-	movq	-8(%rbp), %rax
-	movq	(%rax), %rax
-	addq	$16, %rax
-	addq	%rax, -24(%rbp)
-.L4:
-	movq	top_heap(%rip), %rax
-	cmpq	%rax, -24(%rbp)
-	jnb	.L6
-	cmpq	$0, -32(%rbp)
-	je	.L7
-.L6:
+	movq	%rax, -24(%rbp)				# current_block
+	jmp	while_conditional
+inside_while:
+	movq	-24(%rbp), %rax							 # %rax = current_block
+	movq	%rax, -16(%rbp)							 # (%rbp - 16) = %rax
+	addq	$8, %rax										 # %rax += 8
+	movq	%rax, -8(%rbp)							 # (%rbp - 8) = %rax -> stores de bytes_qnt of the block
+	movq	-16(%rbp), %rax							 # %rax = (%rbp - 16)
+	movq	(%rax), %rax								 # setting the value indicated by the memory location of %rax in %rax
+	testq	%rax, %rax									 # %rax AND %rax
+	jne	block_busy_or_not_enough_space # jumps to block_busy_or_not_enough_space if block is busy
+	movq	-8(%rbp), %rax							 # %rax = (%rbp - 8)
+	movq	(%rax), %rax								 # setting the value indicated by the memory location of %rax in %rax
+	cmpq	%rax, -40(%rbp)							 # %rax - bytes
+	ja	block_busy_or_not_enough_space # jumps to block_busy_or_not_enough_space if free_block dont have enough space
+	movq	-16(%rbp), %rax							 # %rax = (%rbp - 16)
+	movq	$1, (%rax)									 # set the free block to busy
+	movq	-24(%rbp), %rax							 # %rax = current_block
+	movq	%rax, -32(%rbp)							 # (%rbp - 32) = %rax -> free_block
+block_busy_or_not_enough_space:
+	movq	-8(%rbp), %rax							 # %rax = current_block.bytes_qnt
+	movq	(%rax), %rax								 # setting the value indicated by the memory location of %rax in %rax
+	addq	$16, %rax										 # %rax += 16 -> 16 bytes of control information
+ 	addq	%rax, -24(%rbp)							 # current_block += %rax
+while_conditional:
+	movq	top_heap(%rip), %rax 	# %rax = top_heap
+	cmpq	%rax, -24(%rbp)				# current_block - top_heap
+	jnb	end_while								# jumps to end_while if memory position of top_heap is not below current_block
+	cmpq	$0, -32(%rbp)					# 0 - free_block
+	je	inside_while						# jump into the loop if haven't found a free block yet
+end_while:
 	movq	-32(%rbp), %rax
+	addq $40, %rsp				# freeing up stack 40 bytes space
 	popq	%rbp
 	ret
 
